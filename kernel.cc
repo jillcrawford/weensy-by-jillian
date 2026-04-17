@@ -160,7 +160,7 @@ void process_setup(pid_t pid, const char* program_name) {
     assert(ptable[pid].pagetable);
 
     // Copy kernel mappings into the new process page table
-    for (vmiter it(kernel_pagetable, 0); it.va() < MEMSIZE_VIRTUAL; it += PAGESIZE) {
+    for (vmiter it(kernel_pagetable, 0); it.va() < MEMSIZE_PHYSICAL; it += PAGESIZE) {
 
         // copy mappings that are in the kernel
         if (!it.present()) {
@@ -168,12 +168,13 @@ void process_setup(pid_t pid, const char* program_name) {
         }
 
         // don't copy user-accessible kernel mappings as user-accessible
-        int perm = it.perm();
+        if (it.va() < PROC_START_ADDR || it.va() == CONSOLE_ADDR) {
+            int perm = it.perm();
 
-        // not user-accessible
-        if (it.va() < PROC_START_ADDR) {
-            perm &= ~PTE_U;
-        }
+            // kernel memory not user accessible (except console)
+            if (it.va() != CONSOLE_ADDR) {
+                perm &= ~PTE_U;
+            }
 
         vmiter(ptable[pid].pagetable, it.va()).map(it.pa(), perm);
     }
