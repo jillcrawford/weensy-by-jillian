@@ -159,13 +159,24 @@ void process_setup(pid_t pid, const char* program_name) {
     ptable[pid].pagetable = kalloc_pagetable();
     assert(ptable[pid].pagetable);
 
-    for (vmiter kernel_it(kernel_pagetable, 0),
-            proc_it(ptable[pid].pagetable, 0);
-     kernel_it.va() < MEMSIZE_PHYSICAL;
-     kernel_it += PAGESIZE, proc_it += PAGESIZE) {
+// Copy kernel mappings into the new process page table
+    for (vmiter it(kernel_pagetable, 0);
+        it.va() < MEMSIZE_VIRTUAL;
+        it += PAGESIZE) {
 
-    if (kernel_it.present()) {
-        proc_it.map(kernel_it.pa(), kernel_it.perm());
+        // Only copy mappings that are present in the kernel
+        if (!it.present()) {
+            continue;
+        }
+
+        // NEVER copy user-accessible kernel mappings as user-accessible
+        int perm = it.perm();
+
+        // Kernel memory should NOT be user-accessible
+        perm &= ~PTE_U;
+
+        vmiter(ptable[pid].pagetable, it.va())
+            .map(it.pa(), perm);
     }
 }
 
@@ -203,6 +214,9 @@ void process_setup(pid_t pid, const char* program_name) {
     // is currently free.
     assert(physpages[stack_addr / PAGESIZE].refcount == 0);
     ++physpages[stack_addr / PAGESIZE].refcount;
+
+    vmiter(ptable[pid].pagetable, stack_addr).map(stack_addr, PTE_P |PTE_W | PTE_U);
+
     ptable[pid].regs.reg_rsp = stack_addr + PAGESIZE;
 
     // mark process as runnable
