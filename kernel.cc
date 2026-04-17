@@ -61,13 +61,22 @@ void kernel_start(const char* command) {
 
     // (re-)initialize kernel page table
     for (vmiter it(kernel_pagetable);
-         it.va() < MEMSIZE_PHYSICAL;
-         it += PAGESIZE) {
-        if (it.va() != 0) {
-            it.map(it.va(), PTE_P | PTE_W | PTE_U);
-        } else {
-            // nullptr is inaccessible even to the kernel
+        it.va() < MEMSIZE_PHYSICAL;
+        it += PAGESIZE) {
+
+        if (it.va() == 0) {
             it.map(it.va(), 0);
+            }
+
+        else if (it.va() == CONSOLE_ADDR) {
+            it.map(it.va(), PTE_P | PTE_W | PTE_U);
+        } 
+        
+        else if (it.va() < PROC_START_ADDR){
+            it.map(it.va(), PTE_P | PTE_W);
+        }
+        else {
+            it.map(it.va(), PTE_P | PTE_W | PTE_U);
         }
     }
 
