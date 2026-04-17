@@ -161,7 +161,7 @@ void process_setup(pid_t pid, const char* program_name) {
 
 // Copy kernel mappings into the new process page table
     for (vmiter it(kernel_pagetable, 0);
-        it.va() < MEMSIZE_VIRTUAL;
+        it.va() < MEMSIZE_PHYSICAL;
         it += PAGESIZE) {
 
         // Only copy mappings that are present in the kernel
