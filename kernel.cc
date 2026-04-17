@@ -159,6 +159,16 @@ void process_setup(pid_t pid, const char* program_name) {
     ptable[pid].pagetable = kalloc_pagetable();
     assert(ptable[pid].pagetable);
 
+    for (vmiter kernel_it(kernel_pagetable, 0),
+            proc_it(ptable[pid].pagetable, 0);
+     kernel_it.va() < MEMSIZE_PHYSICAL;
+     kernel_it += PAGESIZE, proc_it += PAGESIZE) {
+
+    if (kernel_it.present()) {
+        proc_it.map(kernel_it.pa(), kernel_it.perm());
+    }
+}
+
     // obtain reference to the program image
     program_image pgm(program_name);
 
