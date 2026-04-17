@@ -160,23 +160,22 @@ void process_setup(pid_t pid, const char* program_name) {
     assert(ptable[pid].pagetable);
 
 // Copy kernel mappings into the new process page table
-    for (vmiter it(kernel_pagetable, 0);
-        it.va() < MEMSIZE_PHYSICAL;
-        it += PAGESIZE) {
+    for (vmiter it(kernel_pagetable, 0); it.va() < MEMSIZE_VIRTUAL; it += PAGESIZE) {
 
-        // Only copy mappings that are present in the kernel
+        // copy mappings that are in the kernel
         if (!it.present()) {
             continue;
         }
 
-        // NEVER copy user-accessible kernel mappings as user-accessible
+        // don't copy user-accessible kernel mappings as user-accessible
         int perm = it.perm();
 
-        // Kernel memory should NOT be user-accessible
-        perm &= ~PTE_U;
+        // not user-accessible
+        if (it.va() < PROC_START_ADDR) {
+            perm &= ~PTE_U;
+        }
 
-        vmiter(ptable[pid].pagetable, it.va())
-            .map(it.pa(), perm);
+        vmiter(ptable[pid].pagetable, it.va()).map(it.pa(), perm);
     }
 
     // obtain reference to the program image
@@ -199,8 +198,10 @@ void process_setup(pid_t pid, const char* program_name) {
 
     // initialize data in loadable segments
     for (auto seg = pgm.begin(); seg != pgm.end(); ++seg) {
-        memset((void*) seg.va(), 0, seg.size());
-        memcpy((void*) seg.va(), seg.data(), seg.data_size());
+        for (uintptr_t a = seg.va(); a < seg.va() + seg.size(); a += PAGESIZE) {
+            memset((void*), a, 0, PAGESIZE);
+        }
+        memcpy((void*), seg.va(), seg.data(), seg.data_size());
     }
 
     // mark entry point
