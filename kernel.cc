@@ -229,26 +229,6 @@ void process_setup(pid_t pid, const char* program_name) {
     ptable[pid].state = P_RUNNABLE;
 }
 
-    // mark entry point
-    ptable[pid].regs.reg_rip = pgm.entry();
-
-    // allocate and map stack segment
-    // Compute process virtual address for stack page
-    uintptr_t stack_addr = PROC_START_ADDR + PROC_SIZE * pid - PAGESIZE;
-    // The handout code requires that the corresponding physical address
-    // is currently free.
-    assert(physpages[stack_addr / PAGESIZE].refcount == 0);
-    ++physpages[stack_addr / PAGESIZE].refcount;
-
-    vmiter(ptable[pid].pagetable, stack_addr).map(stack_addr, PTE_P |PTE_W | PTE_U);
-
-    ptable[pid].regs.reg_rsp = stack_addr + PAGESIZE;
-
-    // mark process as runnable
-    ptable[pid].state = P_RUNNABLE;
-}
-
-
 // exception(regs)
 //    Exception handler (for interrupts, traps, and faults).
 //
