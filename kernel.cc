@@ -156,7 +156,8 @@ void process_setup(pid_t pid, const char* program_name) {
     init_process(&ptable[pid], 0);
 
     // initialize process page table
-    ptable[pid].pagetable = kernel_pagetable;
+    ptable[pid].pagetable = kalloc_pagetable();
+    assert(ptable[pid].pagetable);
 
     // obtain reference to the program image
     program_image pgm(program_name);
