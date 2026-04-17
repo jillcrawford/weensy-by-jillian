@@ -332,9 +332,25 @@ uintptr_t syscall(regstate* regs) {
 //    in `u-lib.hh` (but in the handout code, it does not).
 
 int syscall_page_alloc(uintptr_t addr) {
-    assert(physpages[addr / PAGESIZE].refcount == 0);
+    // page-aligned
+    if (addr % PAGESIZE != 0) {
+        return -1;
+    }
+
+    // in user space (except console)
+    if (addr < PROC_START_ADDR && addr != CONSOLE_ADDR) {
+        return -1;
+    }
+
+    // free
+    if (physpages[addr / PAGESIZE].refcount != 0) {
+        return -1;
+    }
+
+    // allocate
     ++physpages[addr / PAGESIZE].refcount;
     memset((void*) addr, 0, PAGESIZE);
+
     return 0;
 }
 
