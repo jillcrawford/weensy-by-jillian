@@ -178,7 +178,6 @@ void process_setup(pid_t pid, const char* program_name) {
         vmiter(ptable[pid].pagetable, it.va())
             .map(it.pa(), perm);
     }
-}
 
     // obtain reference to the program image
     program_image pgm(program_name);
@@ -222,7 +221,6 @@ void process_setup(pid_t pid, const char* program_name) {
     // mark process as runnable
     ptable[pid].state = P_RUNNABLE;
 }
-
 
 
 // exception(regs)
