@@ -159,7 +159,7 @@ void process_setup(pid_t pid, const char* program_name) {
     ptable[pid].pagetable = kalloc_pagetable();
     assert(ptable[pid].pagetable);
 
-// Copy kernel mappings into the new process page table
+    // Copy kernel mappings into the new process page table
     for (vmiter it(kernel_pagetable, 0); it.va() < MEMSIZE_VIRTUAL; it += PAGESIZE) {
 
         // copy mappings that are in the kernel
@@ -189,20 +189,45 @@ void process_setup(pid_t pid, const char* program_name) {
             // `a` is the process virtual address for the next code or data page
             // (The handout code requires that the corresponding physical
             // address is currently free.)
-            assert(physpages[a / PAGESIZE].refcount == 0);
-            ++physpages[a / PAGESIZE].refcount;
+            void* page = kalloc(PAGESIZE);
+            assert(page);
 
-            vmiter(ptable[pid].pagetable, a).map(a, PTE_P | PTE_W | PTE_U);
+            vmiter(ptable[pid].pagetable, a)
+                .map((uintptr_t) page, PTE_P | PTE_W | PTE_U);
         }
     }
 
     // initialize data in loadable segments
     for (auto seg = pgm.begin(); seg != pgm.end(); ++seg) {
-        for (uintptr_t a = seg.va(); a < seg.va() + seg.size(); a += PAGESIZE) {
-            memset((void*), a, 0, PAGESIZE);
+        for (uintptr_t a = round_down(seg.va(), PAGESIZE);
+             a < seg.va() + seg.size();
+             a += PAGESIZE) {
+            uintptr_t pa = vmiter(ptable[pid].pagetable, a).pa();
+            memset((void*) pa, 0, PAGESIZE);
         }
-        memcpy((void*), seg.va(), seg.data(), seg.data_size());
+
+        uintptr_t pa = vmiter(ptable[pid].pagetable, seg.va()).pa();
+        memcpy((void*) pa, seg.data(), seg.data_size());
     }
+
+    // mark entry point
+    ptable[pid].regs.reg_rip = pgm.entry();
+
+    // allocate and map stack segment
+    // Compute process virtual address for stack page
+    uintptr_t stack_addr = PROC_START_ADDR + PROC_SIZE * pid - PAGESIZE;
+
+    void* stack_page = kalloc(PAGESIZE);
+    assert(stack_page);
+
+    vmiter(ptable[pid].pagetable, stack_addr)
+        .map((uintptr_t) stack_page, PTE_P | PTE_W | PTE_U);
+
+    ptable[pid].regs.reg_rsp = stack_addr + PAGESIZE;
+
+    // mark process as runnable
+    ptable[pid].state = P_RUNNABLE;
+}
 
     // mark entry point
     ptable[pid].regs.reg_rip = pgm.entry();
