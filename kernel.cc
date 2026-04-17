@@ -177,6 +177,7 @@ void process_setup(pid_t pid, const char* program_name) {
             }
 
         vmiter(ptable[pid].pagetable, it.va()).map(it.pa(), perm);
+        }
     }
 
     // obtain reference to the program image
