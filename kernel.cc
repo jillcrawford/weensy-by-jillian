@@ -182,6 +182,8 @@ void process_setup(pid_t pid, const char* program_name) {
             // address is currently free.)
             assert(physpages[a / PAGESIZE].refcount == 0);
             ++physpages[a / PAGESIZE].refcount;
+
+            vmiter(ptable[pid].pagetable, a).map(a, PTE_P | PTE_W | PTE_U);
         }
     }
 
