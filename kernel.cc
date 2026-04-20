@@ -78,7 +78,7 @@ void kernel_start(const char* command) {
             perm |= PTE_U;
         }
 
-        it.map(it.pa(), perm);
+        vmiter(kernel_pagetable, it.va()).map(it.pa(), perm);
     }
 
     // set up process descriptors
@@ -160,32 +160,27 @@ void process_setup(pid_t pid, const char* program_name) {
     ptable[pid].pagetable = kalloc_pagetable();
     assert(ptable[pid].pagetable);
 
-    // Copy kernel mappings into the new process page table
-    for (vmiter it(kernel_pagetable, 0); it.va() < MEMSIZE_PHYSICAL; it += PAGESIZE) {
+// Copy kernel mappings into the new process page table
+    for (vmiter it(kernel_pagetable, 0);
+        it.va() < MEMSIZE_PHYSICAL;
+        it += PAGESIZE) {
 
-        // copy mappings that are in the kernel
         if (!it.present()) {
             continue;
         }
 
-        // don't copy user-accessible kernel mappings as user-accessible
         int perm = it.perm();
+
+        // kernel pages are NOT user-accessible
         perm &= ~PTE_U;
 
+        // exception: console stays user-accessible
         if (it.va() == CONSOLE_ADDR) {
             perm |= PTE_U;
-        } {
-            int perm = it.perm();
-
-            // kernel memory not user accessible (except console)
-            if (it.va() != CONSOLE_ADDR) {
-                perm &= ~PTE_U;
-            }
+        }
 
         vmiter(ptable[pid].pagetable, it.va()).map(it.pa(), perm);
-        }
     }
-
     // obtain reference to the program image
     program_image pgm(program_name);
 
