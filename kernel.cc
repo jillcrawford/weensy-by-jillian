@@ -212,10 +212,13 @@ void process_setup(pid_t pid, const char* program_name) {
              a += PAGESIZE) {
             uintptr_t pa = vmiter(ptable[pid].pagetable, a).pa();
             memset((void*) pa, 0, PAGESIZE);
-        }
 
-        uintptr_t pa = vmiter(ptable[pid].pagetable, seg.va()).pa();
-        memcpy((void*) pa, seg.data(), seg.data_size());
+            uintptr_t offset = a - seg.va();
+            if (offset < seg.data_size()) {
+                size_t len = std::min(PAGESIZE, seg.data_size() - offset);
+                memcpy((void*) pa, seg.data() + offset, len);
+            }
+        }
     }
 
     // mark entry point
