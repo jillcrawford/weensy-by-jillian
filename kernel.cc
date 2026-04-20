@@ -70,10 +70,10 @@ void kernel_start(const char* command) {
 
         int perm = it.perm();
 
-        // Remove user access for EVERYTHING...
+        // remove user access
         perm &= ~PTE_U;
 
-        // ...except the console
+        // except for the console
         if (it.va() == CONSOLE_ADDR) {
             perm |= PTE_U;
         }
@@ -169,7 +169,12 @@ void process_setup(pid_t pid, const char* program_name) {
         }
 
         // don't copy user-accessible kernel mappings as user-accessible
-        if (it.va() < PROC_START_ADDR || it.va() == CONSOLE_ADDR) {
+        int perm = it.perm();
+        perm &= ~PTE_U;
+
+        if (it.va() == CONSOLE_ADDR) {
+            perm |= PTE_U;
+        } {
             int perm = it.perm();
 
             // kernel memory not user accessible (except console)
