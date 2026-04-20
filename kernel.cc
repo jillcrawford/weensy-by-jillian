@@ -2,6 +2,7 @@
 #include "k-apic.hh"
 #include "k-vmiter.hh"
 #include <atomic>
+#include <algorithm>
 
 // kernel.cc
 //
