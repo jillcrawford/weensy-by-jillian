@@ -195,8 +195,13 @@ void process_setup(pid_t pid, const char* program_name) {
             void* page = kalloc(PAGESIZE);
             assert(page);
 
+            int perm = PTE_P | PTE_U;
+            if (seg.writable()) {
+                perm |= PTE_W;
+            }
+
             vmiter(ptable[pid].pagetable, a)
-                .map((uintptr_t) page, PTE_P | PTE_W | PTE_U);
+                .map((uintptr_t) page, perm);
         }
     }
 
