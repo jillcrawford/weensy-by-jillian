@@ -78,7 +78,7 @@ void kernel_start(const char* command) {
             perm |= PTE_U;
         }
 
-        vmiter(ptable[pid].pagetable, it.va()).map(it.pa(), perm);
+        it.map(it.pa(), perm);
     }
 
     // set up process descriptors
