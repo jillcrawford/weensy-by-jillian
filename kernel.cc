@@ -429,19 +429,37 @@ int syscall_page_alloc(uintptr_t addr) {
 }
 
 void free_p(pid_t pid) {
-    for (vmiter it(ptable[pid].pagetable, PROC_START_ADDR);
+    pagetable* pt = ptable[pid].pagetable;
+
+    // free all user-accessible pages 
+    for (vmiter it(pt, PROC_START_ADDR);
          it.va() < MEMSIZE_VIRTUAL;
          it += PAGESIZE) {
 
-        if (!it.present()) continue;
+        if (!it.present()) {
+            continue;
+        }
 
-        void* pa = it.kptr();
-        if (pa) {
-            kfree(pa);
+        // skip console (shared global page)
+        if (it.va() == CONSOLE_ADDR) {
+            continue;
+        }
+
+        void* kptr = it.kptr();
+        if (kptr) {
+            kfree(kptr);  
         }
     }
 
-    kfree(ptable[pid].pagetable);
+    // free all page table pages 
+    for (ptiter it(pt); it.va() < MEMSIZE_VIRTUAL; it.next()) {
+        kfree(it.kptr());
+    }
+
+    // free the top-level page table itself
+    kfree(pt);
+
+    // mark process as free
     ptable[pid].pagetable = nullptr;
     ptable[pid].state = P_FREE;
 }
@@ -471,7 +489,7 @@ int syscall_fork() {
     }
 
     // copy kernel mappings
-    for (vmiter it(kernel_pagetable), ct(ptable[child].pagetable);
+    for (vmiter it(kernel_pagetable, 0), ct(ptable[child].pagetable, 0);
         it.va() < PROC_START_ADDR; it += PAGESIZE, ct += PAGESIZE) {
             if(!it.present()) {
                 continue;
@@ -487,7 +505,7 @@ int syscall_fork() {
         }
 
     // copy user space
-    for (vmiter it(current->pagetable), ct(ptable[child].pagetable);
+    for (vmiter it(current->pagetable, 0), ct(ptable[child].pagetable, 0);
         it.va() < MEMSIZE_VIRTUAL; it += PAGESIZE, ct += PAGESIZE) {
             if (!it.present()) {
                 continue;
