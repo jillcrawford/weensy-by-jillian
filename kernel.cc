@@ -465,6 +465,28 @@ int syscall_fork() {
         }
 
     // copy user space
+    for (vmiter it(current->pagetable), ct(ptable[childpid].pagetable);
+        it.va() < MEMSIZE_VIRTUAL; it += PAGESIZE, ct += PAGESIZE) {
+            if (!!it.present()) {
+                continue;
+            }
+
+            void* pa = (void*) it.pa();
+            int perm = it.perm();
+
+            if (perm & PTE_W) {
+                void* newpage = kalloc(PAGESIZE);
+                if (!newpage) {
+                    free_process(childpid);
+                    return -1l
+                }
+
+                memcpy(newpage, pa, PAGESIZE);
+                ct.map((uintptr_t)pa, perm);
+                physpages[ia.pa()/PAGESIZE].refcount++;
+            }
+        }
+
 }
 
 // schedule
