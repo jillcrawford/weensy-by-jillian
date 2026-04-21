@@ -449,6 +449,20 @@ int syscall_fork() {
     }
 
     // copy kernel mappings
+    for (vmiter it(kernel_pagetable), ct(ptable[child].pagetable);
+        it.va() < PROC_START_ADDR; it += PAGESIZE, ct += PAGESIZE) {
+            if(!it.present()) {
+                continue;
+            }
+
+            int perm = it.perm() & ~PTE_U;
+
+            if (it.va() == CONSOLE_ADDR) {
+                perm |= PTE_U;
+            }
+
+            ct.map(it.pa(), perm);
+        }
 
     // copy user space
 }
