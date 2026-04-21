@@ -152,7 +152,7 @@ void kfree(void* kptr) {
     assert(pa % PAGESIZE == 0);
     assert(pa < MEMSIZE_PHYSICAL);
 
-    assert(physpages[pa/PAGESIZE].refcount > 0)
+    assert(physpages[pa/PAGESIZE].refcount > 0);
     physpages[pa/PAGESIZE].refcount--;
     if(physpages[pa/PAGESIZE].refcount == 0) {
         memset(kptr, 0, PAGESIZE);
