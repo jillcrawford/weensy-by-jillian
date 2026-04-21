@@ -429,10 +429,9 @@ int syscall_page_alloc(uintptr_t addr) {
 }
 
 void free_p(pid_t pid) {
-    pagetable* pt = ptable[pid].pagetable;
 
     // free all user-accessible pages 
-    for (vmiter it(pt, PROC_START_ADDR);
+    for (vmiter it(ptable[pid].pagetable, PROC_START_ADDR);
          it.va() < MEMSIZE_VIRTUAL;
          it += PAGESIZE) {
 
