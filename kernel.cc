@@ -478,14 +478,22 @@ int syscall_fork() {
                 void* newpage = kalloc(PAGESIZE);
                 if (!newpage) {
                     free_process(childpid);
-                    return -1l
+                    return -1;
                 }
 
                 memcpy(newpage, pa, PAGESIZE);
                 ct.map((uintptr_t)pa, perm);
                 physpages[ia.pa()/PAGESIZE].refcount++;
-            }
         }
+    }
+
+    // copy registers
+    ptable[childpid].regs = current->regs;
+
+    // child returns 0
+    ptable[childpid].regs.reg_rax = 0;
+    ptable[childpid].state = P_RUNNABLE;
+    return childpid;
 
 }
 
