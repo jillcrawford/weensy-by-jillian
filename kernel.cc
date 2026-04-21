@@ -428,7 +428,7 @@ int syscall_page_alloc(uintptr_t addr) {
     return 0;
 }
 
-void free_process(pid_t pid) {
+void free_p(pid_t pid) {
     for (vmiter it(ptable[pid].pagetable, PROC_START_ADDR);
          it.va() < MEMSIZE_VIRTUAL;
          it += PAGESIZE) {
@@ -499,7 +499,7 @@ int syscall_fork() {
             if (perm & PTE_W) {
                 void* newpage = kalloc(PAGESIZE);
                 if (!newpage) {
-                    free_process(child);
+                    free_p(child);
                     return -1;
                 }
 
