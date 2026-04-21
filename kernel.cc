@@ -376,7 +376,7 @@ uintptr_t syscall(regstate* regs) {
         return syscall_fork();
 
     case SYSCALL_EXIT:
-        free_process(current->pid);
+        free_p(current->pid);
         schedule();
 
     default:
