@@ -489,7 +489,7 @@ int syscall_fork() {
     // copy user space
     for (vmiter it(current->pagetable), ct(ptable[child].pagetable);
         it.va() < MEMSIZE_VIRTUAL; it += PAGESIZE, ct += PAGESIZE) {
-            if (!!it.present()) {
+            if (!it.present()) {
                 continue;
             }
 
@@ -504,7 +504,7 @@ int syscall_fork() {
                 }
 
                 memcpy(newpage, pa, PAGESIZE);
-                ct.map((uintptr_t)pa, perm);
+                ct.map((uintptr_t)newpage, perm);
                 physpages[it.pa()/PAGESIZE].refcount++;
         }
     }
