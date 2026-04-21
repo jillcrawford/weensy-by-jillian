@@ -144,8 +144,19 @@ void* kalloc(size_t sz) {
 //    If `kptr == nullptr` does nothing.
 
 void kfree(void* kptr) {
-    (void) kptr;
-    assert(false /* your code here */);
+    if (kptr == nullptr) {
+        return;
+    }
+
+    uintptr_t pa = (uintptr_t) kptr;
+    assert(pa % PAGESIZE == 0);
+    assert(pa < MEMSIZE_PHYSICAL);
+
+    assert(physpages[pa/PAGESIZE].refcount > 0)
+    physpages[pa/PAGESIZE].refcount--;
+    if(physpages[pa/PAGESIZE].refcount == 0) {
+        memset(kptr, 0, PAGESIZE);
+    }
 }
 
 
@@ -392,8 +403,16 @@ int syscall_page_alloc(uintptr_t addr) {
     }
 
     // map it into the process page table
-    vmiter(current->pagetable, addr)
-        .map((uintptr_t) page, PTE_P | PTE_W | PTE_U);
+    vmiter it (current->pagetable, addr);
+    if (it.present()) {
+        kfree(page);
+        return -1;
+    }
+
+    if (it.try_map((uintptr_t) page, PTE_P | PTE_W | PTE_U) < 0) {
+        kfree(page);
+        return -1;
+    }
 
     // zero it out (optional but good)
     memset(page, 0, PAGESIZE);
