@@ -451,8 +451,11 @@ void free_p(pid_t pid) {
     }
 
     // free all page table pages 
-    for (ptiter it(ptable[pid].pagetable); it.va() < MEMSIZE_VIRTUAL; it.next()) {
-        kfree(it.kptr());
+    for (ptiter it(ptable[pid].pagetable); it.active(); it.next()) {
+        void* kptr = it.kptr();
+        if (kptr) {
+            kfree(kptr);
+        }
     }
 
     // free the top-level page table itself
