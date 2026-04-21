@@ -447,7 +447,7 @@ void free_p(pid_t pid) {
 
         void* kptr = it.kptr();
         if (kptr) {
-            kfree(kptr);  
+            kfree(it.pa());  
         }
     }
 
