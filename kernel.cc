@@ -505,8 +505,12 @@ int syscall_fork() {
 
                 memcpy(newpage, pa, PAGESIZE);
                 ct.map((uintptr_t)newpage, perm);
+            }
+
+            else {
+                ct.map(it.pa(), perm);
                 physpages[it.pa()/PAGESIZE].refcount++;
-        }
+            }
     }
 
     // copy registers
