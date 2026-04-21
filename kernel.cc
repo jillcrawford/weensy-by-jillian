@@ -428,6 +428,24 @@ int syscall_page_alloc(uintptr_t addr) {
     return 0;
 }
 
+void free_process(pid_t pid) {
+    for (vmiter it(ptable[pid].pagetable, PROC_START_ADDR);
+         it.va() < MEMSIZE_VIRTUAL;
+         it += PAGESIZE) {
+
+        if (!it.present()) continue;
+
+        void* pa = it.kptr();
+        if (pa) {
+            kfree(pa);
+        }
+    }
+
+    kfree(ptable[pid].pagetable);
+    ptable[pid].pagetable = nullptr;
+    ptable[pid].state = P_FREE;
+}
+
 // fork
 // 
 int syscall_fork() {
@@ -469,7 +487,7 @@ int syscall_fork() {
         }
 
     // copy user space
-    for (vmiter it(current->pagetable), ct(ptable[childpid].pagetable);
+    for (vmiter it(current->pagetable), ct(ptable[child].pagetable);
         it.va() < MEMSIZE_VIRTUAL; it += PAGESIZE, ct += PAGESIZE) {
             if (!!it.present()) {
                 continue;
@@ -481,7 +499,7 @@ int syscall_fork() {
             if (perm & PTE_W) {
                 void* newpage = kalloc(PAGESIZE);
                 if (!newpage) {
-                    free_process(childpid);
+                    free_process(child);
                     return -1;
                 }
 
@@ -492,31 +510,13 @@ int syscall_fork() {
     }
 
     // copy registers
-    ptable[childpid].regs = current->regs;
+    ptable[child].regs = current->regs;
 
     // child returns 0
-    ptable[childpid].regs.reg_rax = 0;
-    ptable[childpid].state = P_RUNNABLE;
-    return childpid;
+    ptable[child].regs.reg_rax = 0;
+    ptable[child].state = P_RUNNABLE;
+    return child;
 
-}
-
-void free_process(pid_t pid) {
-    for (vmiter it(ptable[pid].pagetable, PROC_START_ADDR);
-         it.va() < MEMSIZE_VIRTUAL;
-         it += PAGESIZE) {
-
-        if (!it.present()) continue;
-
-        void* pa = it.kptr();
-        if (pa) {
-            kfree(pa);
-        }
-    }
-
-    kfree(ptable[pid].pagetable);
-    ptable[pid].pagetable = nullptr;
-    ptable[pid].state = P_FREE;
 }
 
 // schedule
