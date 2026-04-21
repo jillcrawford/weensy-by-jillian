@@ -41,7 +41,8 @@ physpageinfo physpages[NPAGES];
 void exception(regstate* regs);
 uintptr_t syscall(regstate* regs);
 void memshow();
-
+int syscall_fork();
+void free_p(pid_t pid);
 
 // kernel_start(command)
 //    Initialize the hardware and processes and start running. The `command`
@@ -371,6 +372,9 @@ uintptr_t syscall(regstate* regs) {
     case SYSCALL_PAGE_ALLOC:
         return syscall_page_alloc(current->regs.reg_rdi);
 
+    case SYSCALL_FORK:
+        return syscall_fork();
+
     default:
         panic("Unexpected system call %ld!\n", regs->reg_rax);
 
@@ -420,6 +424,18 @@ int syscall_page_alloc(uintptr_t addr) {
     return 0;
 }
 
+// fork
+// 
+int syscall_fork() {
+    // finding free, non-zero slot
+    pid_t child = -1;
+    for (pid_t i = 1; i < NPROC; i++) {
+        if (ptable[i].state == P_FREE) {
+            child = i;
+            break;
+        }
+    }
+}
 
 // schedule
 //    Pick the next process to run and then run it.
