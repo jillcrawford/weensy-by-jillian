@@ -375,6 +375,10 @@ uintptr_t syscall(regstate* regs) {
     case SYSCALL_FORK:
         return syscall_fork();
 
+    case SYSCALL_EXIT:
+        free_process(current->pid);
+        schedule();
+
     default:
         panic("Unexpected system call %ld!\n", regs->reg_rax);
 
