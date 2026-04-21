@@ -375,24 +375,28 @@ uintptr_t syscall(regstate* regs) {
 //    in `u-lib.hh` (but in the handout code, it does not).
 
 int syscall_page_alloc(uintptr_t addr) {
-    // page-aligned
+    // must be page-aligned
     if (addr % PAGESIZE != 0) {
         return -1;
     }
 
-    // in user space (except console)
+    // must be in user space (except console)
     if (addr < PROC_START_ADDR && addr != CONSOLE_ADDR) {
         return -1;
     }
 
-    // free
-    if (physpages[addr / PAGESIZE].refcount != 0) {
+    // allocate a physical page
+    void* page = kalloc(PAGESIZE);
+    if (!page) {
         return -1;
     }
 
-    // allocate
-    ++physpages[addr / PAGESIZE].refcount;
-    memset((void*) addr, 0, PAGESIZE);
+    // map it into the process page table
+    vmiter(current->pagetable, addr)
+        .map((uintptr_t) page, PTE_P | PTE_W | PTE_U);
+
+    // zero it out (optional but good)
+    memset(page, 0, PAGESIZE);
 
     return 0;
 }
