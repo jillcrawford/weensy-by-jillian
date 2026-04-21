@@ -452,9 +452,11 @@ void free_p(pid_t pid) {
 
     // free all page table pages 
     for (ptiter it(ptable[pid].pagetable); it.active(); it.next()) {
-        void* kptr = it.kptr();
-        if (kptr) {
-            kfree(kptr);
+        if (it.level() > 0) {
+            void* kptr = it.kptr();
+            if (kptr) {
+                kfree(kptr);
+            }
         }
     }
 
@@ -506,8 +508,7 @@ int syscall_fork() {
         }
 
     // copy user space
-    for (vmiter it(current->pagetable, 0), ct(ptable[child].pagetable, 0);
-        it.va() < MEMSIZE_VIRTUAL; it += PAGESIZE, ct += PAGESIZE) {
+    for (vmiter it(current->pagetable, 0); it.va() < MEMSIZE_VIRTUAL; it += PAGESIZE) {
             if (!it.present()) {
                 continue;
             }
@@ -523,11 +524,11 @@ int syscall_fork() {
                 }
 
                 memcpy(newpage, pa, PAGESIZE);
-                ct.map((uintptr_t)newpage, perm);
+                vmiter(ptable[child].pagetable, it.va()).map((uintptr_t)newpage, perm);
             }
 
             else {
-                ct.map(it.pa(), perm);
+                vmiter(ptable[child].pagetable, it.va()).map(it.pa(), perm);
                 physpages[it.pa()/PAGESIZE].refcount++;
             }
     }
