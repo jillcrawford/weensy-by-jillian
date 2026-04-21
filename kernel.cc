@@ -435,6 +435,22 @@ int syscall_fork() {
             break;
         }
     }
+
+    // if child is -1, no slot exists
+    if (child == -1) {
+        return -1;
+    }
+
+    // initialize child
+    init_process(&ptable[child], 0);
+    ptable[child].pagetable = kalloc_pagetable();
+    if (!ptable[child].pagetable) {
+        return -1;
+    }
+
+    // copy kernel mappings
+
+    // copy user space
 }
 
 // schedule
