@@ -491,8 +491,7 @@ int syscall_fork() {
     }
 
     // copy kernel mappings
-    for (vmiter it(kernel_pagetable, 0), ct(ptable[child].pagetable, 0);
-        it.va() < PROC_START_ADDR; it += PAGESIZE, ct += PAGESIZE) {
+    for (vmiter it(kernel_pagetable, 0); it.va() < PROC_START_ADDR; it += PAGESIZE) {
             if(!it.present()) {
                 continue;
             }
@@ -503,7 +502,7 @@ int syscall_fork() {
                 perm |= PTE_U;
             }
 
-            ct.map(it.pa(), perm);
+            vmiter(ptable[child].pagetable, it.va()).map(it.pa(), perm);
         }
 
     // copy user space
