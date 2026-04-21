@@ -483,7 +483,7 @@ int syscall_fork() {
 
                 memcpy(newpage, pa, PAGESIZE);
                 ct.map((uintptr_t)pa, perm);
-                physpages[ia.pa()/PAGESIZE].refcount++;
+                physpages[it.pa()/PAGESIZE].refcount++;
         }
     }
 
@@ -495,6 +495,24 @@ int syscall_fork() {
     ptable[childpid].state = P_RUNNABLE;
     return childpid;
 
+}
+
+void free_process(pid_t pid) {
+    for (vmiter it(ptable[pid].pagetable, PROC_START_ADDR);
+         it.va() < MEMSIZE_VIRTUAL;
+         it += PAGESIZE) {
+
+        if (!it.present()) continue;
+
+        void* pa = it.kptr();
+        if (pa) {
+            kfree(pa);
+        }
+    }
+
+    kfree(ptable[pid].pagetable);
+    ptable[pid].pagetable = nullptr;
+    ptable[pid].state = P_FREE;
 }
 
 // schedule
