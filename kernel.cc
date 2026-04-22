@@ -42,7 +42,7 @@ void exception(regstate* regs);
 uintptr_t syscall(regstate* regs);
 void memshow();
 int syscall_fork();
-void free_p(pid_t pid);
+void free_proc(pid_t pid);
 
 // kernel_start(command)
 //    Initialize the hardware and processes and start running. The `command`
@@ -376,7 +376,7 @@ uintptr_t syscall(regstate* regs) {
         return syscall_fork();
 
     case SYSCALL_EXIT:
-        free_p(current->pid);
+        free_proc(current->pid);
         schedule();
         break;
 
@@ -429,7 +429,7 @@ int syscall_page_alloc(uintptr_t addr) {
     return 0;
 }
 
-void free_p(pid_t pid) {
+void free_proc(pid_t pid) {
 
     // free all user-accessible pages 
     for (vmiter it(ptable[pid].pagetable, PROC_START_ADDR);
@@ -501,7 +501,7 @@ int syscall_fork() {
         if (parent_it.va() < PROC_START_ADDR) {
             if (parent_it.present()) {
                 if (child_it.try_map(parent_it.pa(), parent_it.perm()) < 0) {
-                    free_p(child);
+                    free_proc(child);
                     return -1;
                 }
             }
@@ -514,7 +514,7 @@ int syscall_fork() {
             if (parent_it.perm() & PTE_W) {
                 void* newpage = kalloc(PAGESIZE);
                 if (!newpage) {
-                    free_p(child);
+                    free_proc(child);
                     return -1;
                 }
 
@@ -522,7 +522,7 @@ int syscall_fork() {
 
                 if (child_it.try_map((uintptr_t)newpage, parent_it.perm()) < 0) {
                     kfree(newpage);
-                    free_p(child);
+                    free_proc(child);
                     return -1;
                 }
             }
@@ -530,7 +530,7 @@ int syscall_fork() {
             // read-only → share
             else {
                 if (child_it.try_map(parent_it.pa(), parent_it.perm()) < 0) {
-                    free_p(child);
+                    free_proc(child);
                     return -1;
                 }
 
