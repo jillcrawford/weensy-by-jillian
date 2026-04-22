@@ -496,7 +496,7 @@ int syscall_fork() {
         }
 
         // 2. user memory
-        else if (parent_it.kptr() != nullptr) {
+        else if (parent_it.present()) {
 
             // writable → deep copy
             if (parent_it.perm() & PTE_W) {
