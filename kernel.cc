@@ -431,40 +431,29 @@ int syscall_page_alloc(uintptr_t addr) {
 
 void free_proc(pid_t pid) {
 
-    // free all user-accessible pages 
+    // free user pages
     for (vmiter it(ptable[pid].pagetable, PROC_START_ADDR);
          it.va() < MEMSIZE_VIRTUAL;
          it += PAGESIZE) {
 
-        if (!it.present()) {
-            continue;
-        }
-
-        // skip console (shared global page)
-        if (it.va() == CONSOLE_ADDR) {
-            continue;
-        }
-
-        void* kptr = it.kptr();
-        if (kptr) {
-            kfree(kptr);  
+        if (it.kptr() != nullptr) {
+            kfree(it.kptr());
         }
     }
 
-    // free all page table pages 
-    for (ptiter it(ptable[pid].pagetable); it.active(); it.next()) {
-        if (it.level() > 0) {
-            void* kptr = it.kptr();
-            if (kptr) {
-                kfree(kptr);
-            }
+    // free ALL page table pages (no conditions)
+    for (ptiter it(ptable[pid].pagetable);
+         it.active();
+         it.next()) {
+
+        if (it.kptr() != nullptr) {
+            kfree(it.kptr());
         }
     }
 
-    // free the top-level page table itself
+    // free top-level page table
     kfree(ptable[pid].pagetable);
 
-    // mark process as free
     ptable[pid].pagetable = nullptr;
     ptable[pid].state = P_FREE;
 }
