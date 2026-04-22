@@ -452,7 +452,7 @@ void free_proc(pid_t pid) {
     }
 
     // free top-level page table
-    kfree(ptable[pid].pagetable);
+    //kfree(ptable[pid].pagetable);
 
     ptable[pid].pagetable = nullptr;
     ptable[pid].state = P_FREE;
