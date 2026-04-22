@@ -43,6 +43,7 @@ uintptr_t syscall(regstate* regs);
 void memshow();
 int syscall_fork();
 void free_proc(pid_t pid);
+void syscall_exit();
 
 // kernel_start(command)
 //    Initialize the hardware and processes and start running. The `command`
@@ -376,9 +377,7 @@ uintptr_t syscall(regstate* regs) {
         return syscall_fork();
 
     case SYSCALL_EXIT:
-        free_proc(current->pid);
-        schedule();
-        break;
+        syscall_exit();
 
     default:
         panic("Unexpected system call %ld!\n", regs->reg_rax);
@@ -537,6 +536,16 @@ int syscall_fork() {
     ptable[child].state = P_RUNNABLE;
 
     return child;
+}
+
+void syscall_exit() {
+    pid_t pid = current-> pid;
+
+    free_proc(pid);
+
+    ptable[pid].state = P_FREE;
+
+    schedule();
 }
 
 // schedule
