@@ -472,8 +472,8 @@ void free_p(pid_t pid) {
 // fork
 // 
 int syscall_fork() {
-    // finding free, non-zero slot
-    pid_t child = -1;
+    // find free process slot
+    pid_t child = 0;
     for (pid_t i = 1; i < NPROC; i++) {
         if (ptable[i].state == P_FREE) {
             child = i;
@@ -481,67 +481,73 @@ int syscall_fork() {
         }
     }
 
-    // if child is -1, no slot exists
-    if (child == -1) {
+    if (child == 0) {
         return -1;
     }
 
-    // initialize child
-    init_process(&ptable[child], 0);
+    // allocate child page table
     ptable[child].pagetable = kalloc_pagetable();
     if (!ptable[child].pagetable) {
         return -1;
     }
 
-    // copy kernel mappings
-    for (vmiter it(kernel_pagetable, 0); it.va() < PROC_START_ADDR; it += PAGESIZE) {
-            if(!it.present()) {
-                continue;
+    // iterate through parent memory
+    for (vmiter parent_it(current->pagetable), 
+                child_it(ptable[child].pagetable);
+         parent_it.va() < MEMSIZE_VIRTUAL;
+         parent_it += PAGESIZE, child_it += PAGESIZE) {
+
+        // 1. kernel memory: just copy mapping
+        if (parent_it.va() < PROC_START_ADDR) {
+            if (parent_it.present()) {
+                if (child_it.try_map(parent_it.pa(), parent_it.perm()) < 0) {
+                    free_p(child);
+                    return -1;
+                }
             }
-
-            int perm = it.perm() & ~PTE_U;
-
-            if (it.va() == CONSOLE_ADDR) {
-                perm |= PTE_U;
-            }
-
-            vmiter(ptable[child].pagetable, it.va()).map(it.pa(), perm);
         }
 
-    // copy user space
-    for (vmiter it(current->pagetable, 0); it.va() < MEMSIZE_VIRTUAL; it += PAGESIZE) {
-            if (!it.present()) {
-                continue;
-            }
+        // 2. user memory
+        else if (parent_it.kptr() != nullptr) {
 
-            void* pa = (void*) it.pa();
-            int perm = it.perm();
-
-            if (perm & PTE_W) {
+            // writable → deep copy
+            if (parent_it.perm() & PTE_W) {
                 void* newpage = kalloc(PAGESIZE);
                 if (!newpage) {
                     free_p(child);
                     return -1;
                 }
 
-                memcpy(newpage, pa, PAGESIZE);
-                vmiter(ptable[child].pagetable, it.va()).map((uintptr_t)newpage, perm);
+                memcpy(newpage, parent_it.kptr(), PAGESIZE);
+
+                if (child_it.try_map((uintptr_t)newpage, parent_it.perm()) < 0) {
+                    kfree(newpage);
+                    free_p(child);
+                    return -1;
+                }
             }
 
+            // read-only → share
             else {
-                vmiter(ptable[child].pagetable, it.va()).map(it.pa(), perm);
-                physpages[it.pa()/PAGESIZE].refcount++;
+                if (child_it.try_map(parent_it.pa(), parent_it.perm()) < 0) {
+                    free_p(child);
+                    return -1;
+                }
+
+                // increment refcount
+                ++physpages[parent_it.pa() / PAGESIZE].refcount;
             }
+        }
     }
 
     // copy registers
     ptable[child].regs = current->regs;
 
-    // child returns 0
+    // fork return values
     ptable[child].regs.reg_rax = 0;
     ptable[child].state = P_RUNNABLE;
-    return child;
 
+    return child;
 }
 
 // schedule
