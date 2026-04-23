@@ -67,13 +67,13 @@ void kernel_start(const char* command) {
         it.va() < MEMSIZE_PHYSICAL;
         it += PAGESIZE) {
 
+        // skipping unmapped pages
         if (!it.present()) {
             continue;
         }
 
-        int perm = it.perm();
-
         // remove user access
+        int perm = it.perm();
         perm &= ~PTE_U;
 
         // except for the console
@@ -81,6 +81,7 @@ void kernel_start(const char* command) {
             perm |= PTE_U;
         }
 
+        // remap pages w/ updated permissions
         vmiter(kernel_pagetable, it.va()).map(it.pa(), perm);
     }
 
@@ -89,6 +90,8 @@ void kernel_start(const char* command) {
         ptable[i].pid = i;
         ptable[i].state = P_FREE;
     }
+
+    // load programs into memory
     if (command && !program_image(command).empty()) {
         process_setup(1, command);
     } else {
@@ -98,7 +101,7 @@ void kernel_start(const char* command) {
         process_setup(4, "allocator4");
     }
 
-    // Switch to the first process using run()
+    // start first process
     run(&ptable[1]);
 }
 
@@ -129,6 +132,7 @@ void* kalloc(size_t sz) {
         return nullptr;
     }
 
+    // scan all physical memory & find free pages
     for (uintptr_t pa = 0; pa != MEMSIZE_PHYSICAL; pa += PAGESIZE) {
         if (allocatable_physical_address(pa)
             && physpages[pa / PAGESIZE].refcount == 0) {
@@ -150,6 +154,7 @@ void kfree(void* kptr) {
         return;
     }
 
+    // validate pointer
     uintptr_t pa = (uintptr_t) kptr;
     assert(pa % PAGESIZE == 0);
     assert(pa < MEMSIZE_PHYSICAL);
@@ -174,7 +179,7 @@ void process_setup(pid_t pid, const char* program_name) {
     ptable[pid].pagetable = kalloc_pagetable();
     assert(ptable[pid].pagetable);
 
-// Copy kernel mappings into the new process page table
+// copy kernel mappings into the new process page table
     for (vmiter it(kernel_pagetable, 0);
         it.va() < PROC_START_ADDR;
         it += PAGESIZE) {
@@ -224,6 +229,7 @@ void process_setup(pid_t pid, const char* program_name) {
         for (uintptr_t a = round_down(seg.va(), PAGESIZE);
              a < seg.va() + seg.size();
              a += PAGESIZE) {
+            // copy program data, load code
             uintptr_t pa = vmiter(ptable[pid].pagetable, a).pa();
             memset((void*) pa, 0, PAGESIZE);
 
@@ -440,7 +446,7 @@ void free_proc(pid_t pid) {
         }
     }
 
-    // free ALL page table pages (no conditions)
+    // free page table pages
     for (ptiter it(ptable[pid].pagetable);
          it.active();
          it.next()) {
@@ -458,7 +464,6 @@ void free_proc(pid_t pid) {
 }
 
 // fork
-// 
 int syscall_fork() {
     // find free process slot
     pid_t child = 0;
@@ -515,7 +520,7 @@ int syscall_fork() {
                 }
             }
 
-            // read-only → share
+            // read-only - share
             else {
                 if (child_it.try_map(parent_it.pa(), parent_it.perm()) < 0) {
                     free_proc(child);
